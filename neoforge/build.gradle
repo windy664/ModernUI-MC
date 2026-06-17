@@ -10,7 +10,6 @@ version = "${minecraft_version}-${mod_version}" as String
 
 configurations {
     shadow
-    annotationProcessor.extendsFrom(compileOnly)
 }
 
 loom {
@@ -78,7 +77,6 @@ dependencies {
         transitive = false
     }
 
-    compileOnly 'org.spongepowered:mixin:0.8.7'
     compileOnly("org.lwjgl:lwjgl-vulkan:3.4.1")
     testCompileOnly("org.lwjgl:lwjgl-vulkan:3.4.1")
 
