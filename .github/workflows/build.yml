@@ -27,22 +27,10 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build with Gradle
-        run: ./gradlew :ModernUI-NeoForge:build
+        run: ./gradlew build
 
       - name: Upload NeoForge artifact
         uses: actions/upload-artifact@v4
         with:
           name: ModernUI-NeoForge
-          path: neoforge/build/libs/*.jar
-
-      - name: Upload Forge artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ModernUI-Forge
-          path: forge/build/libs/*.jar
-
-      - name: Upload Fabric artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ModernUI-Fabric
-          path: fabric/build/libs/*.jar
+          path: build/libs/*.jar
