@@ -10,6 +10,7 @@ version = "${minecraft_version}-${mod_version}" as String
 
 configurations {
     shadow
+    annotationProcessor.extendsFrom(compileOnly)
 }
 
 loom {
@@ -79,7 +80,6 @@ dependencies {
 
     compileOnly("org.lwjgl:lwjgl-vulkan:3.4.1")
     testCompileOnly("org.lwjgl:lwjgl-vulkan:3.4.1")
-    annotationProcessor configurations.compileOnly
 
     //implementation(forgeDependencies("com.vladsch.flexmark:flexmark:${flexmark_version}"))
 
