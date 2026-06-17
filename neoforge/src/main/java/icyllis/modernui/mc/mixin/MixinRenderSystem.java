@@ -64,7 +64,7 @@ public class MixinRenderSystem {
             options.mAllowGLSPIRV = Boolean.parseBoolean(value);
         }
         options.mDriverBugWorkarounds = ModernUIClient.getGpuDriverBugWorkarounds();
-        switch (device.getBackendName()) {
+        switch (device.getBackend().getBackendName()) {
             case "OpenGL" -> {
                 if (!Core.initOpenGL(options)) {
                     throw new IllegalStateException("Failed to create OpenGL device");
