@@ -33,10 +33,6 @@ import javax.annotation.Nullable;
 @Mixin(Minecraft.class)
 public abstract class MixinMinecraft {
 
-    @Shadow
-    @Nullable
-    public Screen screen;
-
     /*@Shadow
     @Final
     private Window window;
@@ -48,11 +44,16 @@ public abstract class MixinMinecraft {
      * Forge breaks the event, see
      * <a href="https://github.com/MinecraftForge/MinecraftForge/issues/8992">this issue</a>
      */
-    @Inject(method = "setScreen", at = @At(value = "FIELD",
-            target = "Lnet/minecraft/client/Minecraft;screen:Lnet/minecraft/client/gui/screens/Screen;",
-            opcode = Opcodes.PUTFIELD))
+    @Inject(method = "setScreen", at = @At("HEAD"))
     private void onSetScreen(Screen guiScreen, CallbackInfo ci) {
-        MuiModApi.dispatchOnScreenChange(screen, guiScreen);
+        Screen oldScreen = null;
+        try {
+            java.lang.reflect.Field f = Minecraft.class.getDeclaredField("screen");
+            f.setAccessible(true);
+            oldScreen = (Screen) f.get(this);
+        } catch (Exception ignored) {
+        }
+        MuiModApi.dispatchOnScreenChange(oldScreen, guiScreen);
     }
 
     @Inject(method = "onGameLoadFinished", at = @At("HEAD"))
