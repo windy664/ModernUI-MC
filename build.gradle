@@ -1,60 +1,159 @@
 plugins {
+    id 'java-library'
     id 'maven-publish'
-    id 'org.relativitymc.neo-loom' version '1.16-SNAPSHOT' apply false
-    id 'com.gradleup.shadow' version '9.3.0' apply false
+    id 'idea'
+    id 'net.neoforged.moddev' version '2.0.141'
+    id 'com.gradleup.shadow' version '9.3.0'
 }
 
-publishing {
-    repositories {
-        maven {
-            name 'IzzelAliz'
-            url 'https://maven.izzel.io/releases'
-            credentials {
-                username = project.findProperty("izzel_maven_user")
-                password = project.findProperty("izzel_maven_old_token")
-            }
+version = "-" as String
+group = 'icyllis.modernui'
+
+base {
+    archivesName = 'ModernUI-NeoForge'
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+neoForge {
+    version = project.neoforge_version
+
+    runs {
+        client {
+            client()
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+        server {
+            server()
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+        data {
+            clientData()
+            programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('common/src/main/resources/').getAbsolutePath(), '--existing', file('neoforge/src/main/resources/').getAbsolutePath()
+        }
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+    }
+
+    mods {
+        "" {
+            sourceSet(sourceSets.main)
         }
     }
 }
 
-subprojects {
-    apply plugin: 'java'
+// Include both common and neoforge sources
+sourceSets.main {
+    java.srcDirs += ['common/src/main/java', 'neoforge/src/main/java']
+    resources.srcDirs += ['common/src/main/resources', 'neoforge/src/main/resources']
+}
 
-    group = 'icyllis.modernui'
+configurations {
+    shadow
+}
 
-    java.toolchain.languageVersion = JavaLanguageVersion.of(25)
-
-    repositories {
-        mavenCentral()
-        maven {
-            url "https://central.sonatype.com/repository/maven-snapshots"
+repositories {
+    mavenCentral()
+    maven { url 'https://maven.izzel.io/releases' }
+    maven { url 'https://modmaven.dev/' }
+    maven { url 'https://maven.neoforged.net/releases' }
+    mavenLocal()
+    flatDir { dir "${rootProject.projectDir}/libs" }
+    exclusiveContent {
+        forRepository {
+            maven { name = "Modrinth"; url = "https://api.modrinth.com/maven" }
         }
-        exclusiveContent {
-            forRepository {
-                maven {
-                    name = "Modrinth"
-                    url = "https://api.modrinth.com/maven"
-                }
-            }
-            filter {
-                includeGroup "maven.modrinth"
-            }
-        }
+        filter { includeGroup "maven.modrinth" }
+    }
+}
+
+dependencies {
+    // Arc3D
+    ["dev.icyllis:arc3d-compiler",
+     "dev.icyllis:arc3d-core",
+     "dev.icyllis:arc3d-sketch",
+     "dev.icyllis:arc3d-engine",
+     "dev.icyllis:arc3d-granite",
+     "dev.icyllis:arc3d-opengl",
+     "dev.icyllis:arc3d-vulkan"].each {
+        implementation(it + ":${arc3d_version}")
+        shadow(it + ":${arc3d_version}") { transitive = false }
     }
 
-    dependencies {
-        compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
-        compileOnly 'org.jetbrains:annotations:26.0.2'
-        testCompileOnly 'com.google.code.findbugs:jsr305:3.0.2'
-        testCompileOnly 'org.jetbrains:annotations:26.0.2'
-    }
+    // ModernUI Core
+    implementation("dev.icyllis:modernui-core:${core_version}")
+    shadow("dev.icyllis:modernui-core:${core_version}") { transitive = false }
 
-    tasks.withType(JavaCompile).configureEach {
-        it.options.encoding = "UTF-8"
-        it.options.release.set(25)
-    }
+    // Markflow
+    implementation("icyllis.modernui:ModernUI-Markflow:3.12.0") { exclude group: 'icyllis.modernui' }
+    shadow("icyllis.modernui:ModernUI-Markflow:3.12.0") { transitive = false }
 
-    java {
-        withSourcesJar()
+    // Commonmark
+    implementation("org.commonmark:commonmark:${commonmark_version}")
+    shadow("org.commonmark:commonmark:${commonmark_version}") { transitive = false }
+
+    // Fonts
+    shadow ':ModernUI-Fonts-5.0'
+
+    // VulkanMod
+    api("maven.modrinth:JYQhtZtO:PNODQNIn")
+
+    // Mixin
+    compileOnly 'org.spongepowered:mixin:0.8.7'
+    compileOnly 'org.ow2.asm:asm-tree:9.8'
+
+    // LWJGL Vulkan
+    compileOnly("org.lwjgl:lwjgl-vulkan:3.4.1")
+
+    // Annotations
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+    compileOnly 'org.jetbrains:annotations:26.0.2'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = "UTF-8"
+    it.options.release.set(25)
+}
+
+java {
+    withSourcesJar()
+}
+
+shadowJar {
+    archiveClassifier.set("universal")
+    configurations = [project.configurations.shadow]
+}
+
+// Include shadow jar in nestJars for NeoForge
+// (ModDevGradle handles this differently than neo-loom)
+
+processResources {
+    inputs.property 'version', mod_version
+    filesMatching("META-INF/neoforge.mods.toml") {
+        expand 'version': mod_version
+    }
+}
+
+jar {
+    manifest {
+        attributes(
+            "Specification-Title"     : project.name,
+            "Specification-Vendor"    : "BloCamLimb",
+            "Specification-Version"   : "2",
+            "Implementation-Title"    : project.name,
+            "Implementation-Version"  : project.version,
+            "Implementation-Vendor"   : "BloCamLimb",
+            "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        )
+    }
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
     }
 }
